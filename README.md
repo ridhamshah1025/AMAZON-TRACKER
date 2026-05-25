@@ -2,7 +2,7 @@
 
 Monitors [CATAN 6th Edition on Amazon.ca](https://www.amazon.ca/dp/B0DYK1ZH2D) for **used** buying options (Warehouse Deals / "See All Buying Options") and alerts you when they appear.
 
-Runs automatically every **2 hours** via GitHub Actions.
+Runs automatically every **2 hours** via GitHub Actions (at **:17** past even hours **UTC** — e.g. 12:17, 2:17, 4:17 UTC).
 
 ## How it works
 
@@ -63,6 +63,18 @@ Full end-to-end test (fixtures + state + CLI; live Amazon optional):
 |------|---------|----------|
 | `B0DYK1ZH2D` | CATAN 6th Edition | Monitored in production |
 | `B0DDL4LNMT` | Minecraft Labyrinth | Test ASIN (`--test`) — has used offers |
+
+## Scheduled runs not showing?
+
+The cron is already in the workflow — you do **not** add a separate cron in GitHub settings.
+
+1. **Wait for the next slot** — After the first push, the first scheduled run is usually at the **next even hour, minute 17 UTC** (not immediately). Manual runs show as `workflow_dispatch`; scheduled runs show as **`schedule`**.
+2. **Check the right place** — **Actions** → click **Check Amazon Used Offers** in the left list → runs appear on the right with a **schedule** badge.
+3. **Yellow banner** — If Actions shows “Scheduled workflows are disabled”, click **Enable**.
+4. **Repo Settings** → **Actions** → **General** → **Workflow permissions** → **Read and write permissions** (needed for the state-file commit step).
+5. **UTC times** — Alberta (MDT) is UTC−6. Example: **2:17 UTC** = **8:17 PM MDT** the previous calendar day.
+
+Convert your local time: https://crontab.guru/#17_*/2_*_*_*
 
 ## Amazon blocking
 

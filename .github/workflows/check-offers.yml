@@ -1,8 +1,9 @@
 name: Check Amazon Used Offers
 
 on:
+  # Every 2 hours at :17 UTC (avoids :00 rush when GitHub often delays/drops schedules)
   schedule:
-    - cron: "0 */2 * * *"
+    - cron: "17 */2 * * *"
   workflow_dispatch:
     inputs:
       test_mode:
