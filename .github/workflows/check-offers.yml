@@ -1,0 +1,60 @@
+name: Check Amazon Used Offers
+
+on:
+  schedule:
+    - cron: "0 */2 * * *"
+  workflow_dispatch:
+    inputs:
+      test_mode:
+        description: "Run against test ASIN (Minecraft) with known used offers"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run E2E tests
+        run: |
+          python -m unittest tests.test_parser -v
+          python -m unittest tests.test_e2e -v
+          python main.py --test --html-file tests/fixtures/minecraft_used.html --dry-run
+          python main.py --html-file tests/fixtures/catan_new_only.html --dry-run
+
+      - name: Check for used offers
+        env:
+          TARGET_ASIN: B0DYK1ZH2D
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ "${{ github.event.inputs.test_mode }}" = "true" ]; then
+            python main.py --test --force-notify
+          else
+            python main.py
+          fi
+
+      - name: Commit state file
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .tracker-state.json
+          git diff --staged --quiet || git commit -m "Update tracker state"
+          git push
