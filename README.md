@@ -78,11 +78,16 @@ Convert your local time: https://crontab.guru/#17_*/2_*_*_*
 
 ## Amazon blocking
 
-GitHub Actions runners use datacenter IPs. Amazon may return CAPTCHAs or block requests. If workflows fail with fetch errors:
+GitHub Actions runners use datacenter IPs. Amazon may block requests after a few days (CAPTCHA page).
 
-- Re-run manually later.
-- Consider adding `NTFY_TOPIC` for faster awareness of failures.
-- A future upgrade could use Playwright (heavier, slower).
+The tracker now:
+
+1. **Retries** with better browser headers and delays between requests.
+2. **Falls back to Playwright** (real Chromium) when plain HTTP is blocked.
+3. **Stays green** if still blocked — exits successfully so the schedule keeps running.
+4. **Opens one GitHub Issue** the first time a block happens so you know alerts are paused.
+
+If blocking persists for many days, re-run the workflow manually occasionally; Amazon sometimes unblocks later.
 
 ## Files
 

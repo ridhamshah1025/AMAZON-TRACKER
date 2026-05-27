@@ -107,6 +107,45 @@ def notify_discord(
     urllib.request.urlopen(req, timeout=15)
 
 
+def notify_fetch_blocked(
+    asin: str,
+    error: str,
+    product_name: str = "CATAN 6th Edition",
+) -> None:
+    token = os.environ.get("GITHUB_TOKEN")
+    repo = os.environ.get("GITHUB_REPOSITORY")
+    if not token or not repo:
+        print(f"Amazon fetch blocked (no GitHub issue): {error}")
+        return
+
+    title = f"Amazon tracker blocked: {product_name} ({asin})"
+    body = (
+        "The scheduled Amazon check could not reach Amazon.ca (CAPTCHA/bot block).\n\n"
+        "**Your used-offer alerts are paused until fetches succeed again.**\n\n"
+        f"- **ASIN:** {asin}\n"
+        f"- **Product:** https://www.amazon.ca/dp/{asin}\n"
+        f"- **Error:** {error}\n\n"
+        "The workflow will keep retrying every 2 hours. "
+        "You do not need to do anything unless this persists for many days."
+    )
+    payload = json.dumps({"title": title, "body": body}).encode("utf-8")
+    url = f"https://api.github.com/repos/{repo}/issues"
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "Content-Type": "application/json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        if resp.status not in (200, 201):
+            raise RuntimeError(f"GitHub API returned {resp.status}")
+
+
 def send_notifications(
     result: CheckResult,
     product_name: str = "CATAN 6th Edition",

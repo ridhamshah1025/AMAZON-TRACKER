@@ -10,8 +10,8 @@ import sys
 from pathlib import Path
 
 from tracker.amazon import AmazonFetchError, check_used_from_html, check_used_offers
-from tracker.notify import send_notifications
-from tracker.state import should_notify, update_state
+from tracker.notify import notify_fetch_blocked, send_notifications
+from tracker.state import load_state, should_notify, should_notify_blocked, update_state
 
 DEFAULT_ASIN = "B0DYK1ZH2D"
 TEST_ASIN = "B0DDL4LNMT"
@@ -48,6 +48,11 @@ def main() -> int:
         type=Path,
         help="Parse saved HTML instead of fetching Amazon (offline test)",
     )
+    parser.add_argument(
+        "--no-playwright",
+        action="store_true",
+        help="Do not fall back to Playwright when requests are blocked",
+    )
     args = parser.parse_args()
 
     asin = TEST_ASIN if args.test else args.asin
@@ -60,10 +65,39 @@ def main() -> int:
             html = args.html_file.read_text(encoding="utf-8", errors="replace")
             result = check_used_from_html(html, asin, source=str(args.html_file))
         else:
-            result = check_used_offers(asin)
+            result = check_used_offers(
+                asin, use_playwright_fallback=not args.no_playwright
+            )
     except AmazonFetchError as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return 1
+        print(f"WARNING: {exc}", file=sys.stderr)
+        if args.dry_run:
+            return 1 if not exc.blocked else 0
+
+        prev = load_state().get(asin)
+        prev_had_used = prev.had_used if prev else False
+
+        if exc.blocked and should_notify_blocked(asin):
+            print("Notifying: Amazon is blocking automated checks...")
+            try:
+                notify_fetch_blocked(asin, str(exc), product_name)
+                update_state(
+                    asin,
+                    has_used=prev_had_used,
+                    fetch_blocked=True,
+                    blocked_notified=True,
+                )
+            except OSError as notify_exc:
+                print(f"Could not open blocked issue: {notify_exc}", file=sys.stderr)
+                update_state(asin, has_used=prev_had_used, fetch_blocked=True)
+        else:
+            update_state(asin, has_used=prev_had_used, fetch_blocked=True)
+
+        # Exit 0 so the workflow stays green; we can't verify stock while blocked.
+        print(
+            "Exiting without failure (Amazon block). "
+            "Alerts resume when a future run can fetch the page."
+        )
+        return 0
 
     if result.fetch_errors:
         for err in result.fetch_errors:
@@ -93,11 +127,15 @@ def main() -> int:
         print("Sending notification (new used availability)...")
         channels = send_notifications(result, product_name)
         print(f"Notified via: {', '.join(channels)}")
-        update_state(asin, has_used=True, notified=True)
+        update_state(
+            asin, has_used=True, notified=True, fetch_blocked=False
+        )
     else:
         if result.has_used:
             print("Used offers present but already notified; skipping.")
-        update_state(asin, has_used=result.has_used, notified=False)
+        update_state(
+            asin, has_used=result.has_used, notified=False, fetch_blocked=False
+        )
 
     return 0
 
