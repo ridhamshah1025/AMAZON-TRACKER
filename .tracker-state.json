@@ -1,9 +1,9 @@
 {
   "B0DYK1ZH2D": {
     "had_used": true,
-    "last_checked": "2026-06-24T09:56:23.234868+00:00",
+    "last_checked": "2026-06-24T12:34:30.770524+00:00",
     "last_notified": "2026-06-21T05:24:48.914994+00:00",
-    "fetch_blocked": false,
+    "fetch_blocked": true,
     "last_blocked_notified": null
   },
   "B0DDL4LNMT": {
